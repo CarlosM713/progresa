@@ -1,5 +1,5 @@
-﻿// Progresa en el iPhone: guarda la app para abrirla sin cobertura.
-// Primero intenta la red (asÃ­ llegan las versiones nuevas) y, si no hay, usa la copia guardada.
+// Progresa en el iPhone: guarda la app para abrirla sin cobertura.
+// Primero intenta la red (así llegan las versiones nuevas) y, si no hay, usa la copia guardada.
 const CACHE = 'progresa-v2';
 const BASICOS = ['./', 'index.html', 'app.css', 'app.js', 'lib/analisis.js', 'lib/coach.js', 'lib/demo.js', 'lib/movil.js',
   'favicon.svg', 'icono-180.png', 'icono-192.png', 'manifest.webmanifest',
@@ -16,7 +16,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Solo los ficheros de la propia app; Hevy y los vÃ­deos de ejercicios van siempre por la red
+  // Solo los ficheros de la propia app; Hevy y los vídeos de ejercicios van siempre por la red
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
