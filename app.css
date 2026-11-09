@@ -325,3 +325,29 @@ span.ej-mini{background:var(--surface-2)}
 @keyframes puntos{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 .site-footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:13px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Progreso: contenido + lista de ejercicios */
+.prog-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.prog-lista{align-self:start;position:sticky;top:calc(var(--header) + 16px)}
+@media (max-width:900px){
+  .prog-grid{grid-template-columns:minmax(0,1fr)}
+  .prog-lista{position:static;order:-1}
+  .prog-lista .ej-lista{max-height:236px;overflow-y:auto;overscroll-behavior:contain}
+}
+/* Móvil: el bloque del entrenador a todo el ancho */
+@media (max-width:640px){
+  .ej-consejo{flex-direction:column;gap:8px}
+  .ej-consejo .quien{padding-top:0}
+  .ej-consejo .quien br{display:none}
+  .ej-consejo .quien small{margin-left:6px}
+  .ej-head{padding-bottom:8px}
+  .plan .k{width:100%}
+}
+/* Detalles de iPhone: sin zoom al escribir, sin parpadeo al tocar, texto estable al girar */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.movil a,.movil button{-webkit-tap-highlight-color:transparent}
+@media (max-width:640px){
+  .movil input,.movil textarea,.movil select{font-size:16px}
+  .ej-media.grande{width:104px;height:104px;border-radius:12px}
+  .prog-cab{gap:14px}
+}

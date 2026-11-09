@@ -602,7 +602,7 @@ function vProgreso(id) {
       </div></div>
     </div></section>
     <div class="container">
-      <div class="section grid g-12" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
+      <div class="section grid prog-grid">
         <div class="grid" style="align-content:start">
           <div class="grid g4">
             <div class="card kpi"><div class="k">1RM estimado</div><div class="v">${conPeso ? n(ej.mejor.e1rm, 1) : '—'}<small>kg</small></div><div class="d">récord</div></div>
@@ -626,7 +626,7 @@ function vProgreso(id) {
             </tbody></table></div>
           </div>
         </div>
-        <aside class="card" style="align-self:start;position:sticky;top:calc(var(--header) + 16px)">
+        <aside class="card prog-lista">
           <h3>Ejercicios</h3>
           <input class="buscador" id="buscar-ej" type="search" placeholder="Buscar ejercicio…" aria-label="Buscar ejercicio">
           <div class="ej-lista" id="ej-lista">${lista.map((e) => `<button class="ej-btn" data-ej="${esc(e.id)}" aria-pressed="${e.id === ej.id}">${e.plantilla?.thumbnail_url ? `<img class="ej-mini" src="${esc(e.plantilla.thumbnail_url)}" alt="" loading="lazy">` : '<span class="ej-mini"></span>'}<span>${esc(e.titulo)}</span><small>${e.sesiones.length}×</small></button>`).join('')}</div>
@@ -808,7 +808,7 @@ function vAjustes() {
             <input id="hevy-clave" type="password" autocomplete="off" placeholder="Tu API key de Hevy" aria-label="API key de Hevy" required>
             <button class="btn btn-lima" id="hevy-btn">Conectar</button>
           </form>`}
-        <p class="nota">La clave se guarda solo en tu ordenador. No la compartas con nadie.</p>
+        <p class="nota">La clave se guarda solo en ${e.movil ? 'este iPhone' : 'tu ordenador'}. No la compartas con nadie.</p>
       </section>
       <section class="section grid g2">
         <div class="card">
