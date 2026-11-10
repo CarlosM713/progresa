@@ -1,0 +1,101 @@
+/* Progresa · capa «Liquid Glass» sobre el estilo Pista.
+   Paneles translúcidos con desenfoque y brillo en los bordes, sobre un fondo neutro.
+   Para volver al estilo anterior basta con quitar este fichero de index.html. */
+
+:root{
+  --glass:rgba(24,27,32,.34);
+  --glass-2:rgba(255,255,255,.07);
+  --glass-3:rgba(255,255,255,.13);
+  --glass-borde:rgba(255,255,255,.16);
+  --glass-brillo:rgba(255,255,255,.30);
+  --glass-sombra:0 10px 36px -12px rgba(0,0,0,.6);
+  --glass-blur:blur(22px) saturate(170%);
+  --luz:rgba(255,255,255,.05);
+}
+:root[data-theme="light"]{
+  --glass:rgba(255,255,255,.52);
+  --glass-2:rgba(255,255,255,.45);
+  --glass-3:rgba(255,255,255,.7);
+  --glass-borde:rgba(255,255,255,.75);
+  --glass-brillo:rgba(255,255,255,.95);
+  --glass-sombra:0 10px 30px -14px rgba(40,60,20,.28);
+  --luz:rgba(255,255,255,.85);
+}
+
+/* Fondo neutro, sin colores: solo un leve resplandor arriba para dar profundidad al cristal */
+body{background:var(--bg)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(120vmax 60vmax at 50% -10%,var(--luz),transparent 70%)}
+.hero{background:transparent}
+
+/* Superficies de cristal */
+.card,.fila,.cal,.consejo,.kpi,.prog-lista{
+  background:linear-gradient(155deg,var(--glass-3),transparent 42%),var(--glass);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-borde);
+  box-shadow:inset 0 1px 0 var(--glass-brillo),inset 0 -1px 0 rgba(255,255,255,.04),var(--glass-sombra);
+  border-radius:18px}
+.noche{
+  background:linear-gradient(155deg,rgba(200,249,74,.10),transparent 45%),var(--glass);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-borde);border-left:1px solid var(--glass-borde);
+  box-shadow:inset 0 1px 0 var(--glass-brillo),inset 3px 0 0 var(--lima),var(--glass-sombra);
+  border-radius:20px}
+:root[data-theme="light"] .noche{color:var(--ink);--night-ink:var(--ink);--night-ink-2:var(--ink-2);--night-muted:var(--muted);--night-line:var(--line);--night-2:rgba(255,255,255,.6)}
+:root[data-theme="light"] .noche p,:root[data-theme="light"] .noche li{color:var(--ink-2)}
+.fila:hover{background:linear-gradient(155deg,var(--glass-3),transparent 42%),var(--glass-2);transform:translateY(-1px)}
+
+/* Elementos pequeños: píldoras, chips, botones de icono, campos */
+.pill,.icon-btn,.fecha-box,.plan .paso,.buscador,.chat-form input,.noche textarea,.noche select,th,span.ej-mini,.bh .pista,.cal-cab button{
+  background:var(--glass-2);border-color:var(--glass-borde)}
+.pill,.icon-btn{-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:inset 0 1px 0 var(--glass-brillo)}
+.icon-btn{border-radius:14px}
+.pill{border-radius:999px}
+th{background:rgba(255,255,255,.03)}
+:root[data-theme="light"] th{background:rgba(255,255,255,.35)}
+.ej-btn:hover{background:var(--glass-3)}
+
+/* Botones: lima «líquido» con brillo arriba */
+.btn{border-radius:999px}
+.btn-primary,.btn-lima{
+  background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 55%),var(--fill);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 6px rgba(0,0,0,.12),0 8px 24px -10px var(--fill)}
+.btn-ghost,.btn-noche{background:var(--glass-2);border-color:var(--glass-borde);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:inset 0 1px 0 var(--glass-brillo)}
+
+/* Cabecera de cristal. El desenfoque va en un pseudo-elemento: si fuera en la propia
+   cabecera, la barra de pestañas fija del iPhone quedaría encerrada dentro de ella */
+.site-header,.movil .site-header{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:1px solid var(--glass-borde)}
+.site-header::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,var(--glass-3),transparent),var(--glass);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
+.site-header{isolation:isolate}
+.site-nav a[aria-current="page"]{border-radius:999px}
+
+/* iPhone: barra de pestañas flotante de cristal */
+@media (max-width:760px){
+  .movil .site-nav{left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));padding:5px;border-radius:26px;
+    background:linear-gradient(180deg,var(--glass-3),transparent),var(--glass);
+    -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+    border:1px solid var(--glass-borde);box-shadow:inset 0 1px 0 var(--glass-brillo),0 12px 30px -10px rgba(0,0,0,.6)}
+  .movil .site-nav a{border-top:0;border-radius:20px;padding:11px 2px}
+  .movil .site-nav a[aria-current="page"]{background:var(--glass-3);color:var(--lima);box-shadow:inset 0 1px 0 var(--glass-brillo)}
+  :root[data-theme="light"].movil .site-nav a[aria-current="page"]{color:var(--brand)}
+  .movil body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+
+/* Chat y avisos */
+.msg.coach,.noche .msg.coach{background:var(--glass-2);border:1px solid var(--glass-borde);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);color:inherit}
+.msg.yo{box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.msg{border-radius:18px}
+.toast{background:linear-gradient(155deg,var(--glass-3),transparent 45%),var(--glass);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-borde);border-left:1px solid var(--glass-borde);
+  box-shadow:inset 0 1px 0 var(--glass-brillo),inset 3px 0 0 var(--lima),var(--glass-sombra);border-radius:18px}
+:root[data-theme="light"] .toast{color:var(--ink)}
+.banner{background:var(--glass-2);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);border-radius:14px}
+.chip{border-radius:999px}
+.ej-media{border-radius:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4),0 6px 16px -8px rgba(0,0,0,.5)}
+.dia{border-radius:12px}
+.dia.si{background:linear-gradient(180deg,rgba(255,255,255,.4),rgba(255,255,255,0) 60%),var(--fill);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 4px 12px -6px var(--fill)}
