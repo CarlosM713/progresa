@@ -369,7 +369,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 @media (max-width:640px){.strava-form{grid-template-columns:1fr}.strava-form input{font-size:16px}}
 
 /* Pestaña Strava */
-.filtros-strava{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:0}
+.filtros-strava{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:0;margin-bottom:22px}
 .chip-filtro{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);cursor:pointer}
 .chip-filtro[aria-pressed="true"]{background:var(--cardio);border-color:var(--cardio);color:#140700}
 .act-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
@@ -404,3 +404,22 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 @media (max-width:640px){.act-grid{grid-template-columns:1fr}.act-card{grid-template-columns:84px 1fr;gap:12px}.mapa{height:300px}.fotos{grid-template-columns:1fr 1fr}}
 :root:not([data-theme="light"]) .mapa .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.85) saturate(.6)}
 .mapa .leaflet-control-attribution{font-size:10px}
+
+/* Visor de fotos */
+.fotos .foto{display:block;width:100%;aspect-ratio:4/3;padding:0;border:0;border-radius:14px;overflow:hidden;background:var(--surface-2);cursor:zoom-in}
+.fotos .foto:hover img{transform:scale(1.04)}
+.fotos .foto:focus-visible{outline:2px solid var(--lima);outline-offset:2px}
+.visor{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:calc(56px + env(safe-area-inset-top)) 16px calc(56px + env(safe-area-inset-bottom));background:rgba(5,6,8,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);animation:visor-entra .18s ease-out}
+.visor[hidden]{display:none}
+.visor img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px -20px rgba(0,0,0,.8)}
+.visor-btn{position:absolute;width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:26px;line-height:1;cursor:pointer;display:grid;place-items:center;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.visor-btn:hover{background:rgba(255,255,255,.2)}
+.visor-btn[hidden]{display:none}
+.visor-btn.cerrar{top:calc(12px + env(safe-area-inset-top));right:16px;font-size:20px}
+.visor-btn.ant{left:16px;top:50%;margin-top:-24px}
+.visor-btn.sig{right:16px;top:50%;margin-top:-24px}
+.visor-cuenta{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:rgba(255,255,255,.8);font-size:14px;font-variant-numeric:tabular-nums}
+.con-visor body{overflow:hidden}
+@keyframes visor-entra{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.visor{animation:none}}
+@media (max-width:640px){.visor-btn.ant,.visor-btn.sig{top:auto;bottom:calc(8px + env(safe-area-inset-bottom));margin-top:0}}

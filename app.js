@@ -556,7 +556,7 @@ function vActividad(id) {
       ${poly ? `<div class="section mapa-caja card"><div id="mapa-strava" class="mapa" data-poly="${esc(poly)}">${svgRuta(poly, 'grande')}</div></div>` : ''}
       <div class="section grid g4">${kpis}</div>
       ${estadoDet ? `<p class="vacio">${estadoDet}</p>` : ''}
-      ${det?.fotos?.length ? `<section class="section"><div class="section-head"><h2>Fotos</h2></div><div class="fotos">${det.fotos.map((f) => `<a href="${esc(f)}" data-strava="${esc(f)}"><img src="${esc(f)}" alt="" loading="lazy"></a>`).join('')}</div></section>` : ''}
+      ${det?.fotos?.length ? `<section class="section"><div class="section-head"><h2>Fotos</h2></div><div class="fotos">${det.fotos.map((f, i) => `<button type="button" class="foto" data-foto="${i}" aria-label="Ver foto ${i + 1} en grande"><img src="${esc(f)}" alt="" loading="lazy"></button>`).join('')}</div></section>` : ''}
       <div class="section grid g2 act-tablas">
         ${tabla('Parciales por km', `<th>Km</th><th class="num">${esBici(a) ? 'Velocidad' : 'Ritmo'}</th><th></th><th class="num">FC</th><th class="num">Desnivel</th>`,
           parciales.map((p) => `<tr><td class="mono">${p.km}${p.dist < 950 ? ` <small>(${n(p.dist)} m)</small>` : ''}</td><td class="num">${esc(ritmoTramo(a, p.dist, p.t))}</td>
@@ -629,6 +629,63 @@ async function pintarMapa() {
   L.circleMarker(pts.at(-1), { radius: 6, color: '#fff', weight: 2, fillColor: naranja, fillOpacity: 1 }).addTo(mapa).bindTooltip('Llegada');
   mapa.fitBounds(linea.getBounds(), { padding: [24, 24] });
 }
+
+// Visor de fotos a pantalla completa: flechas, teclado, deslizar el dedo y cerrar con Esc o tocando fuera
+const visor = document.createElement('div');
+visor.className = 'visor'; visor.hidden = true;
+visor.setAttribute('role', 'dialog'); visor.setAttribute('aria-modal', 'true'); visor.setAttribute('aria-label', 'Foto en grande');
+visor.innerHTML = `<img alt="">
+  <button type="button" class="visor-btn cerrar" data-visor="cerrar" aria-label="Cerrar">✕</button>
+  <button type="button" class="visor-btn ant" data-visor="-1" aria-label="Foto anterior">‹</button>
+  <button type="button" class="visor-btn sig" data-visor="1" aria-label="Foto siguiente">›</button>
+  <span class="visor-cuenta"></span>`;
+document.body.append(visor);
+let VISOR = null; // { fotos, i }
+
+function mostrarFoto() {
+  const { fotos, i } = VISOR;
+  visor.querySelector('img').src = fotos[i];
+  visor.querySelector('.visor-cuenta').textContent = fotos.length > 1 ? `${i + 1} / ${fotos.length}` : '';
+  visor.querySelectorAll('.ant, .sig').forEach((b) => { b.hidden = fotos.length < 2; });
+}
+function abrirVisor(fotos, i) {
+  VISOR = { fotos, i };
+  mostrarFoto();
+  visor.hidden = false;
+  document.documentElement.classList.add('con-visor');
+  visor.querySelector('.cerrar').focus();
+}
+function cerrarVisor() {
+  visor.hidden = true; VISOR = null;
+  document.documentElement.classList.remove('con-visor');
+}
+const pasarFoto = (d) => { if (!VISOR) return; VISOR.i = (VISOR.i + d + VISOR.fotos.length) % VISOR.fotos.length; mostrarFoto(); };
+
+visor.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-visor]');
+  if (b) { if (b.dataset.visor === 'cerrar') cerrarVisor(); else pasarFoto(Number(b.dataset.visor)); return; }
+  if (e.target === visor) cerrarVisor(); // tocar el fondo cierra
+});
+document.addEventListener('keydown', (e) => {
+  if (!VISOR) return;
+  if (e.key === 'Escape') cerrarVisor();
+  else if (e.key === 'ArrowLeft') pasarFoto(-1);
+  else if (e.key === 'ArrowRight') pasarFoto(1);
+});
+let toqueX = null;
+visor.addEventListener('touchstart', (e) => { toqueX = e.touches[0].clientX; }, { passive: true });
+visor.addEventListener('touchend', (e) => {
+  if (toqueX == null) return;
+  const dx = e.changedTouches[0].clientX - toqueX; toqueX = null;
+  if (Math.abs(dx) > 50) pasarFoto(dx < 0 ? 1 : -1);
+});
+window.addEventListener('hashchange', cerrarVisor);
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('[data-foto]');
+  if (!f) return;
+  const det = DET[decodeURIComponent(location.hash.split('/')[2] || '')];
+  if (det?.fotos?.length) abrirVisor(det.fotos, Number(f.dataset.foto));
+});
 
 // Filtros, «ver más» y reintentar
 document.addEventListener('click', (e) => {
