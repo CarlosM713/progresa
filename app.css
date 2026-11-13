@@ -351,3 +351,56 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .ej-media.grande{width:104px;height:104px;border-radius:12px}
   .prog-cab{gap:14px}
 }
+
+/* Cardio de Strava: naranja para distinguirlo de la fuerza (lima) */
+:root{--cardio:#FF7A3D}
+:root[data-theme="light"]{--cardio:#E2551B}
+.chip.cardio{background:transparent;border-color:var(--cardio);color:var(--cardio);font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:.06em}
+.fila.cardio .fecha-box b{color:var(--cardio)}
+.dia.cardio{box-shadow:inset 0 0 0 2px var(--cardio);color:var(--cardio);font-weight:800}
+.dia.cardio:hover{transform:scale(1.08)}
+.dia.con-cardio::after{content:"";position:absolute;bottom:4px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--cardio);box-shadow:0 0 0 1.5px var(--fill)}
+.cal-leyenda{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.cal-leyenda span{display:inline-flex;align-items:center;gap:6px}
+.cal-leyenda i{width:10px;height:10px;border-radius:3px;background:var(--fill)}
+.cal-leyenda i.l-cardio{background:transparent;box-shadow:inset 0 0 0 2px var(--cardio)}
+.strava-form{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin-top:14px;max-width:760px}
+.strava-form input{min-width:0;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font:inherit;color:var(--ink)}
+@media (max-width:640px){.strava-form{grid-template-columns:1fr}.strava-form input{font-size:16px}}
+
+/* Pestaña Strava */
+.filtros-strava{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:0}
+.chip-filtro{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);cursor:pointer}
+.chip-filtro[aria-pressed="true"]{background:var(--cardio);border-color:var(--cardio);color:#140700}
+.act-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.act-card{display:grid;grid-template-columns:110px 1fr;gap:16px;align-items:center;text-decoration:none;color:inherit;padding:14px;transition:transform .15s}
+.act-card:hover{transform:translateY(-2px)}
+.act-ruta{aspect-ratio:1;border-radius:14px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden}
+.sin-ruta{font-family:var(--display);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:center;padding:6px}
+.ruta{width:100%;height:100%}
+.ruta path{fill:none;stroke:var(--cardio);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.ruta .ini{fill:var(--lima)}.ruta .fin{fill:var(--cardio)}
+.act-info{min-width:0}
+.act-info h3{margin:2px 0 6px;font-size:19px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-fecha{margin:0;font-size:12.5px;color:var(--muted)}
+.act-fecha b{color:var(--cardio)}
+.act-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.act-chips:empty{display:none}
+.mapa-caja{padding:0;overflow:hidden}
+.mapa{height:420px;position:relative;z-index:0;isolation:isolate;background:var(--surface-2)}
+.mapa .ruta{padding:20px}
+.mapa .ruta path{stroke-width:1.4}
+.leaflet-container{font:inherit;background:var(--surface-2)}
+.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.fotos a{display:block;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:var(--surface-2)}
+.fotos img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.fotos a:hover img{transform:scale(1.04)}
+.barra-celda{width:34%}
+.barra-celda .pista{display:block;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.barra-celda .relleno{display:block;height:100%;border-radius:99px;background:var(--cardio)}
+.act-extra{display:flex;gap:28px;flex-wrap:wrap}
+.act-extra p{margin:0}
+.act-extra .k{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+@media (max-width:640px){.act-grid{grid-template-columns:1fr}.act-card{grid-template-columns:84px 1fr;gap:12px}.mapa{height:300px}.fotos{grid-template-columns:1fr 1fr}}
+:root:not([data-theme="light"]) .mapa .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.85) saturate(.6)}
+.mapa .leaflet-control-attribution{font-size:10px}

@@ -1,7 +1,7 @@
 // Progresa en el iPhone: guarda la app para abrirla sin cobertura.
 // Primero intenta la red (así llegan las versiones nuevas) y, si no hay, usa la copia guardada.
-const CACHE = 'progresa-v4';
-const BASICOS = ['./', 'index.html', 'app.css', 'glass.css', 'app.js', 'lib/analisis.js', 'lib/coach.js', 'lib/demo.js', 'lib/movil.js',
+const CACHE = 'progresa-v7';
+const BASICOS = ['./', 'index.html', 'app.css', 'glass.css', 'app.js', 'lib/analisis.js', 'lib/coach.js', 'lib/demo.js', 'lib/movil.js', 'lib/strava.js',
   'favicon.svg', 'icono-180.png', 'icono-192.png', 'manifest.webmanifest',
   'fuentes/barlow-condensed-latin-600-normal.woff2', 'fuentes/barlow-condensed-latin-700-normal.woff2', 'fuentes/barlow-condensed-latin-800-normal.woff2',
   'fuentes/barlow-latin-400-normal.woff2', 'fuentes/barlow-latin-400-italic.woff2', 'fuentes/barlow-latin-500-normal.woff2', 'fuentes/barlow-latin-600-normal.woff2'];

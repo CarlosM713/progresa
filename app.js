@@ -2,6 +2,7 @@
 import { analizar, fmtHoras } from './lib/analisis.js';
 import { informeEntreno, informeGeneral, paqueteClaude, contarNuevos, fraseDelDia, SISTEMA } from './lib/coach.js';
 import { generarDemo } from './lib/demo.js';
+import { listaCardio, resumenCardio, datosCardio, tipoTxt, diaLocal, horaLocal, urlActividad, svgRuta, decodificar, ritmo, ritmoTramo, reloj, km, esAPie, esBici, lineaCardio } from './lib/strava.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
@@ -77,15 +78,17 @@ function toast(titulo, texto, enlace) {
 async function cargar() {
   const [r] = await Promise.all([api('/api/datos'), cargarCoach()]);
   const db = r.db || generarDemo();
+  db.cardio = r.strava ? listaCardio(r.strava) : null;
   const an = analizar(db);
+  const stravaTodas = Object.values(r.strava || {}).sort((a, b) => Date.parse(b.start_date) - Date.parse(a.start_date));
   const cache = {};
   D = {
-    estado: r.estado, db, analisis: an, frase: fraseDelDia(), general: informeGeneral(an),
+    estado: r.estado, db, analisis: an, strava: stravaTodas, frase: fraseDelDia(), general: informeGeneral(an),
     entrenos: Object.values(db.entrenos).sort((a, b) => Date.parse(b.start_time) - Date.parse(a.start_time)),
     informes: new Proxy(cache, { get: (c, id) => (typeof id === 'string' && db.entrenos[id] ? (c[id] ||= informeEntreno(db.entrenos[id], an)) : undefined) }),
   };
   ponerClaude(r.claude);
-  IDX = { ej: {}, ent: {} };
+  IDX = { ej: {}, ent: {}, act: Object.fromEntries(stravaTodas.map((a) => [String(a.id), a])) };
   for (const e of an.ejercicios) IDX.ej[e.id] = e;
   for (const w of D.entrenos) IDX.ent[w.id] = w;
   pintarEstado(D.estado);
@@ -278,7 +281,7 @@ function render() {
     a.toggleAttribute('aria-current', v === activo || (v === 'entrenos' && activo === 'entreno'));
     if (a.hasAttribute('aria-current')) a.setAttribute('aria-current', 'page');
   });
-  const vistas = { '': vResumen, entrenos: vEntrenos, entreno: vEntreno, progreso: vProgreso, entrenador: vEntrenador, ajustes: vAjustes };
+  const vistas = { '': vResumen, entrenos: vEntrenos, entreno: vEntreno, strava: vStrava, progreso: vProgreso, entrenador: vEntrenador, ajustes: vAjustes };
   const desplazar = render.ultima !== location.hash;
   render.ultima = location.hash;
   const y = window.scrollY;
@@ -287,6 +290,7 @@ function render() {
   app.style.minHeight = '';
   window.scrollTo(0, desplazar ? 0 : y);
   enlazar();
+  pintarMapa();
 }
 window.addEventListener('hashchange', render);
 
@@ -302,6 +306,7 @@ function banners() {
   let h = '';
   if (D.estado.demo) h += '<div class="banner">Estás viendo <b>datos de ejemplo</b>. <a href="#/ajustes">Conecta tu cuenta de Hevy en Ajustes</a> para ver los tuyos.</div>';
   if (D.estado.error) h += `<div class="banner">No se pudo sincronizar: ${esc(D.estado.error)}</div>`;
+  if (D.estado.strava?.error) h += `<div class="banner">Strava: ${esc(D.estado.strava.error)}</div>`;
   return h;
 }
 
@@ -391,6 +396,8 @@ function vResumen() {
       <div class="section-head"><h2>Entrenos recientes</h2><a class="btn btn-ghost btn-sm" href="#/entrenos">Ver todos</a></div>
       <div class="lista">${recientes.map(filaEntreno).join('') || '<p class="vacio">Sin entrenos.</p>'}</div>
     </section>
+
+    ${seccionCardio()}
   </div>`;
 }
 
@@ -408,6 +415,229 @@ function filaEntreno(w) {
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:end">${r.prs ? `<span class="chip pr">${r.prs} PR</span>` : ''}</div>
   </a>`;
 }
+
+// ---------- Cardio de Strava ----------
+function filaCardio(a) {
+  const d = diaLocal(a);
+  const mes = new Date(`${d}T12:00:00`).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  return `<a class="fila cardio" href="#/strava/${encodeURIComponent(a.id)}">
+    <div class="fecha-box"><b>${Number(d.slice(8, 10))}</b><span>${esc(mes)}</span></div>
+    <div><h3>${esc(a.name || tipoTxt(a))}</h3><div class="meta"><span><b>${esc(tipoTxt(a))}</b> · ${esc(horaLocal(a))}</span>${datosCardio(a).map((x) => `<span>${esc(x)}</span>`).join('')}</div></div>
+    <div style="display:flex;justify-content:end"><span class="chip cardio">Strava</span></div>
+  </a>`;
+}
+
+function seccionCardio() {
+  const cs = D.db.cardio;
+  if (!cs) return '';
+  const r = resumenCardio(cs, 30);
+  return `<section class="section">
+    <div class="section-head"><div><h2>Cardio</h2><p>Tus actividades de Strava · últimos 30 días</p></div></div>
+    <div class="grid g4">
+      <div class="card kpi"><div class="k">Actividades · 30 días</div><div class="v">${r.n}</div><div class="d">${esc(Object.entries(r.tipos).map(([t, c]) => (c > 1 ? `${t} ×${c}` : t)).join(' · ') || 'sin cardio este mes')}</div></div>
+      <div class="card kpi"><div class="k">Distancia · 30 días</div><div class="v">${n(r.km, 1)}<small>km</small></div></div>
+      <div class="card kpi"><div class="k">Tiempo · 30 días</div><div class="v">${fmtHoras(r.min)}<small>h</small></div></div>
+      <div class="card kpi"><div class="k">Desnivel · 30 días</div><div class="v">${n(r.desnivel)}<small>m</small></div></div>
+    </div>
+    <div class="lista" style="margin-top:14px">${cs.slice(0, 5).map(filaCardio).join('') || '<p class="vacio">Todavía no hay actividades de cardio en Strava.</p>'}</div>
+  </section>`;
+}
+
+// Las actividades se abren en Strava (fuera de Progresa)
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-strava]');
+  if (!a) return;
+  e.preventDefault();
+  abrirFuera(a.dataset.strava);
+});
+
+// ---------- Pestaña Strava: todas las actividades, con su ruta, fotos y detalles ----------
+const DET = {};            // detalle de cada actividad, pedido a Strava al abrirla
+const DET_ERROR = {};
+const PIDIENDO = new Set();
+let FILTRO_STRAVA = '';    // tipo de deporte elegido
+let VER_STRAVA = 24;       // cuántas tarjetas se enseñan
+
+const fechaAct = (a, o = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) => new Date(`${diaLocal(a)}T12:00:00`).toLocaleDateString('es-ES', o);
+
+function tarjetaActividad(a) {
+  const ruta = svgRuta(a.mapa);
+  return `<a class="act-card card" href="#/strava/${encodeURIComponent(a.id)}">
+    <div class="act-ruta">${ruta || `<span class="sin-ruta">${esc(tipoTxt(a))}</span>`}</div>
+    <div class="act-info">
+      <p class="act-fecha">${esc(fechaAct(a, { day: 'numeric', month: 'short', year: 'numeric' }))} · ${esc(horaLocal(a))} · <b>${esc(tipoTxt(a))}</b></p>
+      <h3>${esc(a.name || tipoTxt(a))}</h3>
+      <div class="meta">${datosCardio(a).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
+      <div class="act-chips">${a.total_photo_count ? `<span class="chip">${a.total_photo_count} foto${a.total_photo_count > 1 ? 's' : ''}</span>` : ''}${a.pr_count ? `<span class="chip cardio">${a.pr_count} PR</span>` : ''}${a.kudos_count ? `<span class="chip">${a.kudos_count} kudos</span>` : ''}</div>
+    </div>
+  </a>`;
+}
+
+function vStrava(id) {
+  if (id) return vActividad(id);
+  const s = D.estado.strava || {};
+  if (!s.conectado) {
+    return `<section class="hero"><div class="container hero-in">
+      <p class="kicker">Strava</p>
+      <h1>Tus <span class="marca">rutas</span> de Strava</h1>
+      <p class="lede">Conecta Strava para ver aquí todas tus actividades con su mapa, sus fotos y todos los detalles: parciales, pulsaciones, desnivel y segmentos.</p>
+      <div class="hero-actions"><a class="btn btn-primary" href="#/ajustes">Conectar Strava →</a></div>
+    </div></section>`;
+  }
+  const todas = D.strava;
+  const tipos = [...new Set(todas.map(tipoTxt))];
+  const lista = FILTRO_STRAVA ? todas.filter((a) => tipoTxt(a) === FILTRO_STRAVA) : todas;
+  const ano = new Date().getFullYear();
+  const delAno = resumenCardio(lista.filter((a) => diaLocal(a).startsWith(String(ano))), 400);
+  const total = resumenCardio(lista, 1e5);
+  return `<section class="hero"><div class="container hero-in">
+      <p class="kicker">Strava${s.atleta ? ` · ${esc(s.atleta)}` : ''}</p>
+      <h1>Tus <span class="marca">${todas.length} actividades</span></h1>
+      <p class="lede">${n(total.km, 0)} km y ${fmtHoras(total.min)} h en total${FILTRO_STRAVA ? ` de ${esc(FILTRO_STRAVA.toLowerCase())}` : ''}. Toca una para ver su mapa, sus fotos y todos los detalles.</p>
+      ${banners()}
+    </div></section>
+    <div class="container">
+      <div class="section filtros-strava">
+        <button type="button" class="chip-filtro" data-tipo="" aria-pressed="${!FILTRO_STRAVA}">Todas</button>
+        ${tipos.map((t) => `<button type="button" class="chip-filtro" data-tipo="${esc(t)}" aria-pressed="${t === FILTRO_STRAVA}">${esc(t)}</button>`).join('')}
+      </div>
+      <div class="grid g4">
+        <div class="card kpi"><div class="k">Actividades · ${ano}</div><div class="v">${delAno.n}</div></div>
+        <div class="card kpi"><div class="k">Distancia · ${ano}</div><div class="v">${n(delAno.km, 0)}<small>km</small></div></div>
+        <div class="card kpi"><div class="k">Tiempo · ${ano}</div><div class="v">${fmtHoras(delAno.min)}<small>h</small></div></div>
+        <div class="card kpi"><div class="k">Desnivel · ${ano}</div><div class="v">${n(delAno.desnivel)}<small>m</small></div></div>
+      </div>
+      <div class="section act-grid">${lista.slice(0, VER_STRAVA).map(tarjetaActividad).join('') || '<p class="vacio">No hay actividades.</p>'}</div>
+      ${lista.length > VER_STRAVA ? `<div style="text-align:center"><button class="btn btn-ghost" id="strava-mas">Ver más (${lista.length - VER_STRAVA})</button></div>` : ''}
+    </div>`;
+}
+
+function vActividad(id) {
+  const a = IDX.act[id];
+  if (!a) return '<div class="container section"><p class="vacio">No encuentro esa actividad.</p><a class="btn btn-ghost" href="#/strava">Volver</a></div>';
+  const det = DET[id];
+  if (!det && !PIDIENDO.has(id) && !DET_ERROR[id]) pedirDetalle(id);
+  const pos = D.strava.indexOf(a), ant = D.strava[pos + 1], sig = D.strava[pos - 1];
+  const kpi = (k, v, ud = '', d = '') => (v == null || v === '' ? '' : `<div class="card kpi"><div class="k">${k}</div><div class="v">${v}${ud ? `<small>${ud}</small>` : ''}</div>${d ? `<div class="d">${d}</div>` : ''}</div>`);
+  const r = ritmo(a);
+  const kpis = [
+    kpi('Distancia', km(a) ? n(km(a), 2) : null, 'km'),
+    kpi('En movimiento', a.moving_time ? reloj(a.moving_time) : null, '', a.elapsed_time && a.elapsed_time - a.moving_time > 60 ? `${reloj(a.elapsed_time)} en total` : ''),
+    kpi(esBici(a) ? 'Velocidad media' : 'Ritmo medio', r ? esc(r.split(' ')[0]) : null, r ? esc(r.split(' ').slice(1).join(' ')) : ''),
+    kpi('Desnivel', a.total_elevation_gain ? n(a.total_elevation_gain) : null, 'm', a.elev_high != null ? `entre ${n(a.elev_low)} y ${n(a.elev_high)} m` : ''),
+    kpi('FC media', a.average_heartrate ? Math.round(a.average_heartrate) : null, 'ppm', a.max_heartrate ? `máxima ${Math.round(a.max_heartrate)}` : ''),
+    kpi('Calorías', det?.calorias ? n(det.calorias) : null, 'kcal'),
+    kpi('Esfuerzo relativo', a.suffer_score || null),
+    kpi('Velocidad máx.', a.max_speed ? n(a.max_speed * 3.6, 1) : null, 'km/h'),
+    kpi('Cadencia', a.average_cadence ? Math.round(a.average_cadence * (esAPie(a) ? 2 : 1)) : null, esAPie(a) ? 'ppm' : 'rpm'),
+    kpi('Potencia media', a.average_watts ? Math.round(a.average_watts) : null, 'W'),
+    kpi('Temperatura', det?.temp != null ? det.temp : null, 'ºC'),
+    kpi('Kudos', a.kudos_count || null, '', a.achievement_count ? `${a.achievement_count} logros` : ''),
+  ].filter(Boolean).join('');
+  const poly = det?.polyline || a.mapa;
+  const parciales = det?.parciales?.filter((p) => p.dist > 50) || [];
+  const maxVel = Math.max(...parciales.map((p) => p.vel || 0), 0);
+  const tabla = (titulo, cab, filas) => (filas ? `<div class="card ejercicio"><div class="ej-head"><h3>${titulo}</h3></div><div class="tabla-wrap"><table><thead><tr>${cab}</tr></thead><tbody>${filas}</tbody></table></div></div>` : '');
+  const pregunta = `Analiza mi actividad de Strava: ${lineaCardio(a)}${parciales.length ? `. Parciales por km: ${parciales.map((p) => `${p.km}: ${ritmoTramo(a, p.dist, p.t)}${p.fc ? ` FC ${Math.round(p.fc)}` : ''}`).join(' · ')}` : ''}`;
+  let estadoDet = '';
+  if (!det) estadoDet = PIDIENDO.has(id) ? '<span class="puntos">Pidiendo a Strava las fotos y los parciales</span>' : DET_ERROR[id] ? `No se pudo cargar el detalle: ${esc(DET_ERROR[id])} · <button class="link-btn" data-reintentar="${esc(id)}">Reintentar</button>` : '';
+  return `<section class="hero"><div class="container hero-in">
+      <p class="kicker">${esc(fechaAct(a))} · ${esc(horaLocal(a))} · ${esc(tipoTxt(a))}${a.trainer ? ' · en interior' : ''}</p>
+      <h1>${esc(a.name || tipoTxt(a))}</h1>
+      ${det?.descripcion ? `<p class="lede">${esc(det.descripcion)}</p>` : ''}
+      <div class="hero-actions">
+        <a class="btn btn-ghost btn-sm" href="#/strava">← Todas</a>
+        ${ant ? `<a class="btn btn-ghost btn-sm" href="#/strava/${encodeURIComponent(ant.id)}">Anterior</a>` : ''}
+        ${sig ? `<a class="btn btn-ghost btn-sm" href="#/strava/${encodeURIComponent(sig.id)}">Siguiente</a>` : ''}
+        <a class="btn btn-ghost btn-sm" href="${esc(urlActividad(a))}" data-strava="${esc(urlActividad(a))}">Ver en Strava ↗</a>
+      </div>
+    </div></section>
+    <div class="container">
+      ${poly ? `<div class="section mapa-caja card"><div id="mapa-strava" class="mapa" data-poly="${esc(poly)}">${svgRuta(poly, 'grande')}</div></div>` : ''}
+      <div class="section grid g4">${kpis}</div>
+      ${estadoDet ? `<p class="vacio">${estadoDet}</p>` : ''}
+      ${det?.fotos?.length ? `<section class="section"><div class="section-head"><h2>Fotos</h2></div><div class="fotos">${det.fotos.map((f) => `<a href="${esc(f)}" data-strava="${esc(f)}"><img src="${esc(f)}" alt="" loading="lazy"></a>`).join('')}</div></section>` : ''}
+      <div class="section grid g2 act-tablas">
+        ${tabla('Parciales por km', `<th>Km</th><th class="num">${esBici(a) ? 'Velocidad' : 'Ritmo'}</th><th></th><th class="num">FC</th><th class="num">Desnivel</th>`,
+          parciales.map((p) => `<tr><td class="mono">${p.km}${p.dist < 950 ? ` <small>(${n(p.dist)} m)</small>` : ''}</td><td class="num">${esc(ritmoTramo(a, p.dist, p.t))}</td>
+            <td class="barra-celda"><span class="pista"><span class="relleno" style="width:${maxVel ? Math.round((p.vel / maxVel) * 100) : 0}%"></span></span></td>
+            <td class="num">${p.fc ? Math.round(p.fc) : '—'}</td><td class="num">${p.desn != null ? `${p.desn > 0 ? '+' : ''}${n(p.desn)} m` : '—'}</td></tr>`).join(''))}
+        ${tabla('Vueltas', '<th>Vuelta</th><th class="num">Distancia</th><th class="num">Tiempo</th><th class="num">Ritmo</th><th class="num">FC</th>',
+          (det?.vueltas || []).map((l) => `<tr><td>${esc(l.nombre)}</td><td class="num">${n(l.dist / 1000, 2)} km</td><td class="num">${reloj(l.t)}</td><td class="num">${esc(ritmoTramo(a, l.dist, l.t))}</td><td class="num">${l.fc ? Math.round(l.fc) : '—'}</td></tr>`).join(''))}
+        ${tabla('Mejores marcas', '<th>Distancia</th><th class="num">Tiempo</th><th></th>',
+          (det?.mejores || []).map((b) => `<tr><td>${esc(b.nombre)}</td><td class="num">${reloj(b.t)}</td><td>${b.pr === 1 ? '<span class="chip cardio">Récord</span>' : b.pr ? `<span class="chip">${b.pr}.ª mejor</span>` : ''}</td></tr>`).join(''))}
+        ${tabla('Segmentos', '<th>Segmento</th><th class="num">Distancia</th><th class="num">Tiempo</th><th></th>',
+          (det?.segmentos || []).map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${n(x.dist / 1000, 2)} km</td><td class="num">${reloj(x.t)}</td><td>${x.kom ? `<span class="chip cardio">Top ${x.kom}</span>` : x.pr === 1 ? '<span class="chip cardio">Récord</span>' : ''}</td></tr>`).join(''))}
+      </div>
+      ${det && (det.equipo || det.dispositivo || det.esfuerzo) ? `<div class="section card act-extra">
+        ${det.equipo ? `<p><span class="k">Equipo</span> ${esc(det.equipo)}</p>` : ''}
+        ${det.dispositivo ? `<p><span class="k">Dispositivo</span> ${esc(det.dispositivo)}</p>` : ''}
+        ${det.esfuerzo ? `<p><span class="k">Esfuerzo percibido</span> ${esc(det.esfuerzo)}/10</p>` : ''}
+      </div>` : ''}
+      <div class="section noche">
+        <div class="noche-icono">${iconoCoach}</div>
+        <p class="kicker">Tu entrenador</p>
+        <h2>¿Qué tal ha ido?</h2>
+        <p>Le paso esta actividad con sus parciales y te dice cómo ha ido y cómo combinarla con tu entreno de fuerza.</p>
+        <button class="btn btn-lima" data-pregunta="${esc(pregunta)}">Analizarla con mi entrenador →</button>
+      </div>
+    </div>`;
+}
+
+async function pedirDetalle(id) {
+  PIDIENDO.add(id);
+  delete DET_ERROR[id];
+  try { DET[id] = await api(`/api/strava/actividad?id=${encodeURIComponent(id)}`); }
+  catch (e) { DET_ERROR[id] = e.message; }
+  PIDIENDO.delete(id);
+  if (decodeURIComponent(location.hash) === `#/strava/${id}`) render();
+}
+
+// Mapa de verdad (Leaflet + teselas de OpenStreetMap). Si no carga, se queda la silueta SVG
+let _leaflet = null;
+function cargarLeaflet() {
+  _leaflet ||= new Promise((ok, mal) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.append(css);
+    const js = document.createElement('script');
+    js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    js.onload = () => ok(window.L);
+    js.onerror = () => { _leaflet = null; js.remove(); mal(new Error('sin mapa')); };
+    document.head.append(js);
+  });
+  return _leaflet;
+}
+
+async function pintarMapa() {
+  const caja = $('#mapa-strava');
+  if (!caja) return;
+  const pts = decodificar(caja.dataset.poly);
+  if (pts.length < 2) return;
+  let L;
+  try { L = await cargarLeaflet(); } catch { return; }
+  if (!caja.isConnected) return;
+  caja.innerHTML = '';
+  const mapa = L.map(caja, { scrollWheelZoom: false });
+  // Teselas de OpenStreetMap; en el tema oscuro se oscurecen con un filtro (ver .mapa en app.css)
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(mapa);
+  const naranja = getComputedStyle(document.documentElement).getPropertyValue('--cardio').trim() || '#FF7A3D';
+  const linea = L.polyline(pts, { color: naranja, weight: 4, opacity: 0.95 }).addTo(mapa);
+  L.circleMarker(pts[0], { radius: 6, color: '#fff', weight: 2, fillColor: '#C8F94A', fillOpacity: 1 }).addTo(mapa).bindTooltip('Salida');
+  L.circleMarker(pts.at(-1), { radius: 6, color: '#fff', weight: 2, fillColor: naranja, fillOpacity: 1 }).addTo(mapa).bindTooltip('Llegada');
+  mapa.fitBounds(linea.getBounds(), { padding: [24, 24] });
+}
+
+// Filtros, «ver más» y reintentar
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tipo]');
+  if (t) { FILTRO_STRAVA = t.dataset.tipo; VER_STRAVA = 24; render(); return; }
+  if (e.target.closest('#strava-mas')) { VER_STRAVA += 24; render(); return; }
+  const r = e.target.closest('[data-reintentar]');
+  if (r) { pedirDetalle(r.dataset.reintentar); render(); }
+});
 
 // ---------- Calendario de entrenos (navegable por mes y año) ----------
 let CAL = null; // { y, m } del mes que se está viendo
@@ -427,16 +657,28 @@ function calendario() {
     delMes++;
     (porDia[d.getDate()] ||= []).push(w);
   }
+  // Cardio de Strava, por su fecha local
+  const cardioDia = {};
+  let cardioMes = 0;
+  for (const a of D.db.cardio || []) {
+    const d = diaLocal(a);
+    if (Number(d.slice(0, 4)) !== y || Number(d.slice(5, 7)) - 1 !== m) continue;
+    cardioMes++;
+    (cardioDia[Number(d.slice(8, 10))] ||= []).push(a);
+  }
+  const txtCardio = (as) => as.map((a) => `${tipoTxt(a)}: ${a.name || ''}${datosCardio(a).length ? ` · ${datosCardio(a).slice(0, 2).join(' · ')}` : ''}`).join('\n');
   const hueco = (new Date(y, m, 1).getDay() + 6) % 7; // la semana empieza en lunes
   const dias = new Date(y, m + 1, 0).getDate();
   const esHoy = (dia) => hoy.getFullYear() === y && hoy.getMonth() === m && hoy.getDate() === dia;
   let celdas = '<span></span>'.repeat(hueco);
   for (let dia = 1; dia <= dias; dia++) {
-    const ws = porDia[dia];
+    const ws = porDia[dia], cs = cardioDia[dia];
     if (ws) {
       ws.sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
-      const titulo = ws.map((w) => { const r = D.analisis.resumenEntreno[w.id] || {}; return `${w.title}${r.duracion ? ` · ${fmtHoras(r.duracion)} h` : ''}`; }).join('\n');
-      celdas += `<a class="dia si ${esHoy(dia) ? 'hoy' : ''}" href="#/entreno/${encodeURIComponent(ws[0].id)}" title="${esc(titulo)}">${dia}${ws.length > 1 ? `<i>${ws.length}</i>` : ''}</a>`;
+      const titulo = ws.map((w) => { const r = D.analisis.resumenEntreno[w.id] || {}; return `${w.title}${r.duracion ? ` · ${fmtHoras(r.duracion)} h` : ''}`; }).join('\n') + (cs ? `\n${txtCardio(cs)}` : '');
+      celdas += `<a class="dia si ${cs ? 'con-cardio' : ''} ${esHoy(dia) ? 'hoy' : ''}" href="#/entreno/${encodeURIComponent(ws[0].id)}" title="${esc(titulo)}">${dia}${ws.length > 1 ? `<i>${ws.length}</i>` : ''}</a>`;
+    } else if (cs) {
+      celdas += `<a class="dia cardio ${esHoy(dia) ? 'hoy' : ''}" href="#/strava/${encodeURIComponent(cs[0].id)}" title="${esc(txtCardio(cs))}">${dia}</a>`;
     } else {
       celdas += `<span class="dia ${esHoy(dia) ? 'hoy' : ''}">${dia}</span>`;
     }
@@ -451,7 +693,8 @@ function calendario() {
       <button type="button" data-cal="12" title="Año siguiente" aria-label="Año siguiente">»</button>
     </div>
     <div class="cal-grid">${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => `<span class="sem">${d}</span>`).join('')}${celdas}</div>
-    <div class="cal-pie"><span><b>${delMes}</b> entreno${delMes === 1 ? '' : 's'} en ${MESES[m]} · <b>${delAno}</b> en ${y}</span>${actual ? '' : '<button type="button" class="link-btn" data-cal="hoy">Hoy</button>'}</div>
+    <div class="cal-pie"><span><b>${delMes}</b> entreno${delMes === 1 ? '' : 's'} en ${MESES[m]} · <b>${delAno}</b> en ${y}${D.db.cardio ? ` · <b>${cardioMes}</b> de cardio en ${MESES[m]}` : ''}</span>${actual ? '' : '<button type="button" class="link-btn" data-cal="hoy">Hoy</button>'}</div>
+    ${D.db.cardio ? '<div class="cal-leyenda"><span><i class="l-fuerza"></i>Fuerza (Hevy)</span><span><i class="l-cardio"></i>Cardio (Strava)</span></div>' : ''}
   </div>`;
 }
 
@@ -784,8 +1027,8 @@ function vAjustes() {
   const conectado = !e.demo;
   return `<section class="hero"><div class="container hero-in">
       <p class="kicker">Ajustes</p>
-      <h1>Conecta <span class="marca">Hevy</span></h1>
-      <p class="lede">Progresa lee tus entrenos con la API oficial de Hevy y los guarda en tu ordenador.</p>
+      <h1>Conecta <span class="marca">Hevy</span> y Strava</h1>
+      <p class="lede">Progresa lee tus entrenos de fuerza de Hevy y tu cardio de Strava con sus API oficiales, y los guarda en ${e.movil ? 'tu iPhone' : 'tu ordenador'}.</p>
     </div></section>
     <div class="container">
       <section class="section noche">
@@ -810,6 +1053,7 @@ function vAjustes() {
           </form>`}
         <p class="nota">La clave se guarda solo en ${e.movil ? 'este iPhone' : 'tu ordenador'}. No la compartas con nadie.</p>
       </section>
+      ${seccionStrava(e)}
       <section class="section grid g2">
         <div class="card">
           <h3>Sincronización diaria</h3>
@@ -825,7 +1069,78 @@ function vAjustes() {
     </div>`;
 }
 
+// Strava: cada usuario crea su propia «aplicación de API» en Strava (gratis) y pega aquí su ID y secreto
+const DOMINIO_IPHONE = 'carlosm713.github.io';
+let AVISO_STRAVA = null; // la vuelta de Strava cayó en Safari y no en la app
+
+function seccionStrava(e) {
+  const s = e.strava || {};
+  const icono = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 6 17h4l3-6 3 6h4z"/><path d="m15 17 2 4 2-4"/></svg>';
+  if (s.conectado) {
+    return `<section class="section noche" id="strava">
+      <div class="noche-icono">${icono}</div>
+      <p class="kicker">Cuenta de Strava · cardio</p>
+      <h2>Conectado${s.atleta ? ` como ${esc(s.atleta)}` : ''}</h2>
+      <p>${s.actividades} actividades descargadas · última comprobación ${hace(s.ultimaOk)}${s.error ? ` · <b>error:</b> ${esc(s.error)}` : ''}. Se sincroniza a la vez que Hevy. Las sesiones de pesas que Hevy sube a Strava no se cuentan dos veces.</p>
+      <div class="hero-actions"><button class="btn btn-noche" id="strava-desconectar">Desconectar Strava</button></div>
+    </section>`;
+  }
+  return `<section class="section noche" id="strava">
+    <div class="noche-icono">${icono}</div>
+    <p class="kicker">Cuenta de Strava · cardio</p>
+    <h2>Conecta Strava</h2>
+    ${AVISO_STRAVA ? `<div class="banner">${esc(AVISO_STRAVA)}</div>` : ''}
+    <p>Tu cardio (carreras, bici, caminatas…) aparecerá en el resumen y el calendario, y tu entrenador lo tendrá en cuenta. Strava pide que cada persona cree su propia «aplicación de API»: es gratis y se hace una sola vez.</p>
+    <ol class="pasos">
+      <li><span>Entra en <button class="link-btn" data-fuera="https://www.strava.com/settings/api">strava.com/settings/api</button> con tu cuenta${e.movil ? '' : ' (mejor desde el ordenador)'}.</span></li>
+      <li><span>Crea la aplicación. Nombre: <b>Progresa</b> · Categoría: <b>Entrenamiento</b> · Sitio web: <span class="mono">https://${DOMINIO_IPHONE}/progresa/</span> · Dominio de devolución de autorización: <span class="mono">${DOMINIO_IPHONE}</span>. Sirve para el iPhone y el PC.</span></li>
+      <li><span>Copia el <b>ID de cliente</b> y el <b>secreto de cliente</b>, pégalos aquí y pulsa <b>Conectar</b>. Strava te pedirá permiso para ver tus actividades: acéptalo.</span></li>
+    </ol>
+    <form class="strava-form" id="strava-form">
+      <input id="strava-id" inputmode="numeric" autocomplete="off" placeholder="ID de cliente" aria-label="ID de cliente de Strava" value="${esc(s.clientId || '')}" required>
+      <input id="strava-secreto" type="password" autocomplete="off" placeholder="${s.configurado ? 'Secreto guardado (pega otro para cambiarlo)' : 'Secreto de cliente'}" aria-label="Secreto de cliente de Strava" ${s.configurado ? '' : 'required'}>
+      <button class="btn btn-lima" id="strava-btn">Conectar con Strava</button>
+    </form>
+    ${e.movil && s.configurado ? `<details class="instr"><summary>¿Al aceptar no has vuelto a Progresa?</summary>
+      <p class="nota" style="margin-top:8px">Si Strava terminó en Safari, copia la dirección de esa página (empieza por https://${DOMINIO_IPHONE}/progresa/?state=strava…) y pégala aquí.</p>
+      <form class="chat-form" id="strava-vuelta-form"><input id="strava-vuelta" type="url" inputmode="url" placeholder="https://${DOMINIO_IPHONE}/progresa/?state=strava&code=…" aria-label="Dirección de vuelta de Strava" required><button class="btn btn-noche">Terminar</button></form>
+    </details>` : ''}
+    <p class="nota">El ID y el secreto se guardan solo en ${e.movil ? 'este iPhone' : 'tu ordenador'}. No los compartas con nadie.</p>
+  </section>`;
+}
+
+async function terminarStrava(params) {
+  const s = await api('/api/strava', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ codigo: params.get('code') || '', scope: params.get('scope') || '', error: params.get('error') || '' }) });
+  AVISO_STRAVA = null;
+  return s;
+}
+
 function enlazarAjustes() {
+  $('#strava-form')?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const b = $('#strava-btn'); b.disabled = true;
+    try {
+      const { url } = await api('/api/strava', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ clientId: $('#strava-id').value, clientSecret: $('#strava-secreto').value }) });
+      if (MOVIL) { location.href = url; return; } // en el iPhone, Strava vuelve a la propia app
+      abrirFuera(url);
+      toast('Acepta en Strava', 'Se ha abierto Strava en tu navegador. Cuando aceptes, tu cardio llegará aquí solo.');
+    } catch (err) { toast('No se pudo conectar Strava', err.message); }
+    b.disabled = false;
+  });
+  $('#strava-vuelta-form')?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      const u = new URL($('#strava-vuelta').value.trim());
+      await terminarStrava(u.searchParams);
+      await cargar();
+      toast('¡Strava conectado!', `${D.db.cardio?.length || 0} actividades de cardio descargadas.`);
+    } catch (err) { toast('No se pudo conectar Strava', err.message); }
+  });
+  $('#strava-desconectar')?.addEventListener('click', async () => {
+    if (!confirm('¿Desconectar Strava? Tu cardio dejará de verse en Progresa.')) return;
+    await api('/api/strava', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ desconectar: true }) });
+    await cargar();
+  });
   app.querySelectorAll('[data-fuera]').forEach((b) => b.addEventListener('click', () => abrirFuera(b.dataset.fuera)));
   $('#hevy-form')?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -880,5 +1195,21 @@ async function sondear() {
   } catch { /* el programa se está cerrando */ }
 }
 
-cargar().then(sondear).catch((e) => { app.innerHTML = `<div class="container section"><p class="aviso alto">No se pudo cargar: ${esc(e.message)}.</p></div>`; });
+// En el iPhone, Strava vuelve a la app con ?state=strava&code=…: se termina la conexión y se limpia la dirección
+async function vueltaStrava() {
+  const q = new URLSearchParams(location.search);
+  if (!MOVIL || q.get('state') !== 'strava') return;
+  history.replaceState(null, '', `${location.pathname}${q.has('movil') ? '?movil' : ''}#/ajustes`);
+  try {
+    await terminarStrava(q);
+    setTimeout(() => toast('¡Strava conectado!', 'Tu cardio ya está en Progresa.'), 300);
+  } catch (err) {
+    AVISO_STRAVA = err.message === 'SIN_CONFIG'
+      ? 'Strava ha vuelto a Safari en vez de a la app Progresa. Mantén pulsada la barra de dirección de esta página, cópiala, abre Progresa desde la pantalla de inicio y pégala en Ajustes → «¿Al aceptar no has vuelto a Progresa?».'
+      : err.message;
+    if (err.message === 'SIN_CONFIG') history.replaceState(null, '', `${location.pathname}?${q}#/ajustes`);
+  }
+}
+
+vueltaStrava().then(cargar).then(sondear).catch((e) => { app.innerHTML = `<div class="container section"><p class="aviso alto">No se pudo cargar: ${esc(e.message)}.</p></div>`; });
 setInterval(sondear, 5000);

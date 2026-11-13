@@ -102,3 +102,9 @@ th{background:rgba(255,255,255,.03)}
 .ej-media{border-radius:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4),0 6px 16px -8px rgba(0,0,0,.5)}
 .dia{border-radius:12px}
 .dia.si{background:linear-gradient(180deg,rgba(255,255,255,.4),rgba(255,255,255,0) 60%),var(--fill);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 4px 12px -6px var(--fill)}
+.strava-form input{background:var(--glass-2);border-color:var(--glass-borde)}
+.dia.cardio{background:var(--glass-2)}
+.act-ruta,.chip-filtro:not([aria-pressed="true"]){background:var(--glass-2);border-color:var(--glass-borde)}
+.mapa-caja{border-radius:20px}
+/* iPhone: seis pestañas en la barra de abajo */
+@media (max-width:760px){.movil .site-nav{padding:4px}.movil .site-nav a{flex:1 1 auto;font-size:9.5px;letter-spacing:0;padding-left:0;padding-right:0}}
